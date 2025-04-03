@@ -5,19 +5,9 @@ const mongoose = require('mongoose')
 const cookieParser = require('cookie-parser')
 const bcrypt = require('bcryptjs')
 const jwt = require('jsonwebtoken')
-const socketio = require('socket.io')
 
 const app = express()
-const server = require('http').Server(app)
-const io = require("socket.io")(server, {
-    cors: {
-        origin: process.env.FRONTEND_URL, // Allow frontend
-        methods: ["GET", "POST"], // HTTP methods
-        allowedHeaders: ["Content-Type"], // Allow headers
-        credentials: true, // Allow cookies
-        transports: ["websocket", "polling"], // Allow WebSockets
-    },
-})
+
 app.use(express.json())
 app.use(cors({ origin: process.env.FRONTEND_URL }))
 app.use(cookieParser())
@@ -56,16 +46,19 @@ const Admin = mongoose.model('admins',admin)
 app.post('/', async (req, res) => {
     try {
         const { token } = req.body
+        console.log(token)
         jwt.verify(token, process.env.JWT_SECRET, async (err, decoded) => {
             if (err) {
                 return res.status(400).json({ message: "Token verification failed" });
             }
             const { email,role } = decoded
+            console.log(email,role)
             if (role === 'Admin') {
                 try {
                     const admin = await Admin.findOne({email})
                     const tasks = await Task.find({ createdBy: admin._id }).lean()
                     const agents = await Agent.find({ Admin: admin._id }).lean()
+                    console.log(admin,agents,tasks)
                     return res.status(200).json({admin, role: 'Admin',tasks,agents})
                 } catch (dbError) {
                     return res.status(500).json()
@@ -77,6 +70,7 @@ app.post('/', async (req, res) => {
                         return res.status(404).json()
                     }
                     const tasks = await Task.find({ Agent: agent._id })
+                    console.log(agent,tasks)
                     return res.status(200).json({agent: { ...agent, tasks: tasks }, role: 'Agent' })
                 } catch (agentError) {
                     return res.status(500).json()
@@ -90,13 +84,15 @@ app.post('/', async (req, res) => {
 app.post('/Login',async(req,res)=>{
     try {
         const {  type,email, pwd } = req.body
+        console.log('in login',type,email,pwd)
         if(type === "Admin"){
             const admin = await Admin.findOne({ email })
             const match = await bcrypt.compare(pwd,admin.pwd)
             if(!match){
                 return res.status(400).json({message : "Details not match"})
             }
-            const token = await jwt.sign({ email: email, role: 'Admin'}, process.env.JWT_SECRET,{expiresIn : '1d'})
+            const token = await jwt.sign({ email: email, role: 'Admin'}, process.env.JWT_SECRET,{expiresIn : '7d'})
+            console.log('Admin',token)
             return res.status(200).json({message : "Login success",token : token,role:'Admin'})
         }
         else{
@@ -106,6 +102,7 @@ app.post('/Login',async(req,res)=>{
                 return res.status(400).json({ message: "Details not match" })
             }
             const token = await jwt.sign({ email: email,role : 'Agent' }, process.env.JWT_SECRET, { expiresIn: '7d' })
+            console.log('Agent',token)
             return res.status(200).json({ message: "Login success", token: token,role:'agent' })
         }
     }
@@ -338,14 +335,4 @@ app.post('/CRUD_Task',async(req,res)=>{
     }
 })
 
-io.on("connection", (socket) => {
-    const userId = socket.handshake.query.userId;
-    console.log(`New WebSocket Connection: ${socket.id}, User: ${userId}`);
-
-    socket.on("disconnect", () => {
-        console.log(`User ${userId} (Socket ${socket.id}) disconnected`);
-    });
-})
-
-
-server.listen(3000)
+app.listen(3000)
