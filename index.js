@@ -9,10 +9,10 @@ const socketio = require('socket.io')
 
 const app = express()
 const server = require('http').Server(app)
-const io = socketio(server, {cors: {origin: "http://localhost:5173",methods: ["GET", "POST"]}});
+const io = socketio(server, { cors: { origin: process.env.FRONTEND_URL,methods: ["GET", "POST"]}});
 
 app.use(express.json())
-app.use(cors({origin : 'http://localhost:5173'}))
+app.use(cors({ origin: process.env.FRONTEND_URL }))
 app.use(cookieParser())
 
 mongoose.connect(process.env.MONGODB_URI)
