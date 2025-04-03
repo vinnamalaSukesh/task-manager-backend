@@ -9,8 +9,15 @@ const socketio = require('socket.io')
 
 const app = express()
 const server = require('http').Server(app)
-const io = socketio(server, { cors: { origin: process.env.FRONTEND_URL,methods: ["GET", "POST"]}});
-
+const io = require("socket.io")(server, {
+    cors: {
+        origin: process.env.FRONTEND_URL, // Allow frontend
+        methods: ["GET", "POST"], // HTTP methods
+        allowedHeaders: ["Content-Type"], // Allow headers
+        credentials: true, // Allow cookies
+        transports: ["websocket", "polling"], // Allow WebSockets
+    },
+})
 app.use(express.json())
 app.use(cors({ origin: process.env.FRONTEND_URL }))
 app.use(cookieParser())
@@ -48,7 +55,7 @@ const Admin = mongoose.model('admins',admin)
 
 app.post('/', async (req, res) => {
     try {
-        const { token } = req.body;
+        const { token } = req.body
         jwt.verify(token, process.env.JWT_SECRET, async (err, decoded) => {
             if (err) {
                 return res.status(400).json({ message: "Token verification failed" });
@@ -330,27 +337,15 @@ app.post('/CRUD_Task',async(req,res)=>{
         return res.status(200).json({task:updatedTask})
     }
 })
-const connectedUsers = {}
 
-io.on('connection', (socket) => {
+io.on("connection", (socket) => {
     const userId = socket.handshake.query.userId;
-    if (userId) {
-        connectedUsers[userId] = socket.id; // Store mapping
-        console.log(`User ${userId} connected with socket ID: ${socket.id}`);
-    } else {
-        console.log(`Socket ${socket.id} connected without userId`);
-    }
+    console.log(`New WebSocket Connection: ${socket.id}, User: ${userId}`);
 
-    socket.on('sendMessage', (message) => {
-        io.emit('message', message);
-    });
-
-    socket.on('disconnect', () => {
+    socket.on("disconnect", () => {
         console.log(`User ${userId} (Socket ${socket.id}) disconnected`);
-        delete connectedUsers[userId]; // Remove user from mapping
-    })
+    });
 })
 
-server.listen(3000, () => {
-    console.log('Server running on port 3000')
-});
+
+server.listen(3000)
