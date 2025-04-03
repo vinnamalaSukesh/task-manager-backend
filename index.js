@@ -9,7 +9,7 @@ const jwt = require('jsonwebtoken')
 const app = express()
 
 app.use(express.json())
-app.use(cors({origin: process.env.FRONTEND_URL,credentials: true}))
+app.options('*',cors())
 app.use(cookieParser())
 
 mongoose.connect(process.env.MONGODB_URI)
